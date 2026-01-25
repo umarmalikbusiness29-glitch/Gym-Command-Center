@@ -9,6 +9,12 @@ import { Loader2 } from "lucide-react";
 import LoginPage from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import MembersPage from "@/pages/members";
+import MyProfilePage from "@/pages/my-profile";
+import AttendancePage from "@/pages/attendance";
+import WorkoutsPage from "@/pages/workouts";
+import POSPage from "@/pages/pos";
+import PaymentsPage from "@/pages/payments";
+import SettingsPage from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 
 // Protected Route Component
@@ -39,6 +45,24 @@ function Router() {
       </Route>
       <Route path="/members">
         <ProtectedRoute component={MembersPage} />
+      </Route>
+      <Route path="/my-profile">
+        <ProtectedRoute component={MyProfilePage} />
+      </Route>
+      <Route path="/attendance">
+        <ProtectedRoute component={AttendancePage} />
+      </Route>
+      <Route path="/workouts">
+        <ProtectedRoute component={WorkoutsPage} />
+      </Route>
+      <Route path="/pos">
+        <ProtectedRoute component={POSPage} />
+      </Route>
+      <Route path="/payments">
+        <ProtectedRoute component={PaymentsPage} />
+      </Route>
+      <Route path="/settings">
+        <ProtectedRoute component={SettingsPage} />
       </Route>
       
       {/* Default Redirect */}

@@ -9,7 +9,10 @@ import {
   CalendarDays,
   LogOut,
   Menu,
-  X
+  X,
+  Settings,
+  UserCircle,
+  ClipboardCheck
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -26,10 +29,13 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, show: true },
+    { href: "/my-profile", label: "My Profile", icon: UserCircle, show: isMember },
     { href: "/members", label: "Members", icon: Users, show: isAdmin || isTrainer },
+    { href: "/attendance", label: "Attendance", icon: ClipboardCheck, show: isAdmin || isTrainer },
     { href: "/workouts", label: "Workouts", icon: CalendarDays, show: true },
     { href: "/pos", label: "Store", icon: ShoppingBag, show: true },
     { href: "/payments", label: "Finance", icon: CreditCard, show: isAdmin || isMember },
+    { href: "/settings", label: "Settings", icon: Settings, show: isAdmin },
   ];
 
   return (
