@@ -135,24 +135,32 @@ export async function registerRoutes(
     }
   });
 
-  app.get(api.attendance.live.path, requireStaff, async (req, res) => {
+  app.get(api.attendance.live.path, requireAuth, async (req, res) => {
     const live = await storage.getLiveAttendance();
-    // Enrich with member details (inefficient but works for MVP)
-    const attendees = [];
-    for (const record of live) {
-      const m = await storage.getMember(record.memberId);
-      if (m) attendees.push(m);
-    }
+    
+    // Get capacity from settings
+    const capacitySetting = await storage.getSetting('gym_capacity');
+    const capacity = capacitySetting ? parseInt(capacitySetting.value) : 50;
     
     const count = live.length;
-    const capacity = 50; // Hardcoded for now, could be setting
     const occupancyRate = Math.round((count / capacity) * 100);
     let crowdStatus = "Low";
     if (occupancyRate > 40) crowdStatus = "Moderate";
     if (occupancyRate > 80) crowdStatus = "High";
     if (occupancyRate >= 100) crowdStatus = "Full";
 
-    res.json({ count, capacity, occupancyRate, crowdStatus, attendees });
+    // Only staff can see attendee details, members just see counts
+    if (req.user!.role === 'member') {
+      res.json({ count, capacity, occupancyRate, crowdStatus, attendees: [] });
+    } else {
+      // Enrich with member details for staff
+      const attendees = [];
+      for (const record of live) {
+        const m = await storage.getMember(record.memberId);
+        if (m) attendees.push(m);
+      }
+      res.json({ count, capacity, occupancyRate, crowdStatus, attendees });
+    }
   });
   
   app.get(api.attendance.history.path, requireAuth, async (req, res) => {

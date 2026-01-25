@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, LogOut, Activity, CreditCard, Dumbbell, Calendar } from "lucide-react";
+import { LogIn, LogOut, Activity, CreditCard, Dumbbell, Calendar, Users, Clock } from "lucide-react";
 import { format } from "date-fns";
 
 export default function MyProfilePage() {
@@ -31,6 +31,16 @@ export default function MyProfilePage() {
       return res.json();
     },
     refetchInterval: 30000,
+  });
+
+  const { data: liveData } = useQuery({
+    queryKey: [api.attendance.live.path],
+    queryFn: async () => {
+      const res = await fetch(api.attendance.live.path);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    refetchInterval: 15000,
   });
 
   const { data: myWorkouts } = useQuery({
@@ -172,6 +182,72 @@ export default function MyProfilePage() {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="border-none shadow-lg bg-card/50 backdrop-blur-sm">
+          <CardHeader className="flex flex-row items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            <div>
+              <CardTitle>Gym Occupancy</CardTitle>
+              <CardDescription>Real-time gym capacity status</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {liveData ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center p-4 rounded-lg bg-muted/30">
+                  <p className="text-3xl font-bold text-primary">{liveData.count}</p>
+                  <p className="text-sm text-muted-foreground">People Now</p>
+                </div>
+                <div className="text-center p-4 rounded-lg bg-muted/30">
+                  <p className="text-3xl font-bold">{liveData.capacity}</p>
+                  <p className="text-sm text-muted-foreground">Max Capacity</p>
+                </div>
+                <div className="text-center p-4 rounded-lg bg-muted/30">
+                  <p className={`text-3xl font-bold ${liveData.capacity - liveData.count <= 5 ? "text-red-400" : liveData.capacity - liveData.count <= 15 ? "text-yellow-400" : "text-green-400"}`}>
+                    {Math.max(0, liveData.capacity - liveData.count)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Spots Left</p>
+                </div>
+                <div className="text-center p-4 rounded-lg bg-muted/30">
+                  <p className={`text-xl font-bold ${
+                    liveData.crowdStatus === "Low" ? "text-green-400" :
+                    liveData.crowdStatus === "Moderate" ? "text-yellow-400" :
+                    liveData.crowdStatus === "High" ? "text-orange-400" : "text-red-400"
+                  }`}>
+                    {liveData.crowdStatus}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Status</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">Loading gym status...</p>
+            )}
+            
+            {liveData?.crowdStatus === "Full" && (
+              <div className="mt-4 p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                <div className="flex items-center gap-2 text-red-400">
+                  <Clock className="h-5 w-5" />
+                  <p className="font-medium">Gym is at full capacity</p>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Peak hours are typically 5-8 PM on weekdays. Try visiting during off-peak hours (early morning or mid-afternoon) for a less crowded experience.
+                </p>
+              </div>
+            )}
+            
+            {liveData?.crowdStatus === "High" && (
+              <div className="mt-4 p-4 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                <div className="flex items-center gap-2 text-orange-400">
+                  <Clock className="h-5 w-5" />
+                  <p className="font-medium">Gym is getting busy</p>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Only {liveData.capacity - liveData.count} spots remaining. Consider visiting soon or waiting for it to slow down.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="border-none shadow-lg bg-card/50 backdrop-blur-sm">
