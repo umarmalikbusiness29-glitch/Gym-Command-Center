@@ -1,8 +1,8 @@
 import { db } from "./db";
 import { 
-  users, members, attendance, payments, workouts, diets, products, orders, discipline,
+  users, members, attendance, payments, workouts, diets, products, orders, discipline, settings,
   type User, type InsertUser, type InsertMember, type Payment, type Product, type InsertProduct,
-  type Workout, type InsertWorkout, type Attendance, type InsertPayment, type Order
+  type Workout, type InsertWorkout, type Attendance, type InsertPayment, type Order, type Diet, type InsertDiet
 } from "@shared/schema";
 import { eq, and, desc, sql, gte, lt } from "drizzle-orm";
 
@@ -46,6 +46,19 @@ export interface IStorage {
   getWorkouts(memberId?: number, date?: string): Promise<Workout[]>;
   createWorkout(workout: InsertWorkout): Promise<Workout>;
   completeWorkout(id: number, feedback?: string): Promise<Workout>;
+  deleteWorkout(id: number): Promise<void>;
+
+  // Diets
+  getDiets(memberId?: number): Promise<Diet[]>;
+  createDiet(diet: InsertDiet): Promise<Diet>;
+
+  // Settings
+  getSettings(): Promise<{ key: string; value: string }[]>;
+  getSetting(key: string): Promise<{ key: string; value: string } | undefined>;
+  setSetting(key: string, value: string): Promise<{ key: string; value: string }>;
+
+  // Check status
+  isCheckedIn(memberId: number): Promise<{ isCheckedIn: boolean; attendance: Attendance | null }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -270,6 +283,55 @@ export class DatabaseStorage implements IStorage {
       .where(eq(workouts.id, id))
       .returning();
     return updated;
+  }
+
+  async deleteWorkout(id: number): Promise<void> {
+    await db.delete(workouts).where(eq(workouts.id, id));
+  }
+
+  async getDiets(memberId?: number): Promise<Diet[]> {
+    if (memberId) {
+      return await db.select().from(diets).where(eq(diets.memberId, memberId)).orderBy(desc(diets.date));
+    }
+    return await db.select().from(diets).orderBy(desc(diets.date));
+  }
+
+  async createDiet(diet: InsertDiet): Promise<Diet> {
+    const [newDiet] = await db.insert(diets).values(diet).returning();
+    return newDiet;
+  }
+
+  async getSettings(): Promise<{ key: string; value: string }[]> {
+    return await db.select({ key: settings.key, value: settings.value }).from(settings);
+  }
+
+  async getSetting(key: string): Promise<{ key: string; value: string } | undefined> {
+    const [setting] = await db.select({ key: settings.key, value: settings.value })
+      .from(settings).where(eq(settings.key, key));
+    return setting;
+  }
+
+  async setSetting(key: string, value: string): Promise<{ key: string; value: string }> {
+    const existing = await this.getSetting(key);
+    if (existing) {
+      await db.update(settings).set({ value }).where(eq(settings.key, key));
+    } else {
+      await db.insert(settings).values({ key, value });
+    }
+    return { key, value };
+  }
+
+  async isCheckedIn(memberId: number): Promise<{ isCheckedIn: boolean; attendance: Attendance | null }> {
+    const today = new Date().toISOString().split('T')[0];
+    const [entry] = await db.select().from(attendance)
+      .where(and(
+        eq(attendance.memberId, memberId),
+        eq(attendance.date, today),
+        sql`${attendance.checkOutTime} IS NULL`
+      ))
+      .orderBy(desc(attendance.checkInTime))
+      .limit(1);
+    return { isCheckedIn: !!entry, attendance: entry || null };
   }
 }
 

@@ -232,12 +232,123 @@ export async function registerRoutes(
   app.patch(api.workouts.complete.path, requireAuth, async (req, res) => {
     const id = Number(req.params.id);
     const feedback = req.body.feedback;
-    
-    // Verify ownership
-    const [workout] = await storage.getWorkouts(); // Need to fetch specific workout - optimized later
-    // For MVP, just update
     const updated = await storage.completeWorkout(id, feedback);
     res.json(updated);
+  });
+
+  app.delete(api.workouts.delete.path, requireStaff, async (req, res) => {
+    const id = Number(req.params.id);
+    await storage.deleteWorkout(id);
+    res.json({ message: "Deleted" });
+  });
+
+  // === DIETS ===
+  app.get(api.diets.list.path, requireAuth, async (req, res) => {
+    let memberId = req.query.memberId ? Number(req.query.memberId) : undefined;
+    if (req.user!.role === 'member') {
+      const myProfile = await storage.getMemberByUserId(req.user!.id);
+      memberId = myProfile!.id;
+    }
+    const dietList = await storage.getDiets(memberId);
+    res.json(dietList);
+  });
+
+  app.post(api.diets.assign.path, requireStaff, async (req, res) => {
+    const input = api.diets.assign.input.parse(req.body);
+    const diet = await storage.createDiet({ ...input, assignedBy: req.user!.id });
+    res.status(201).json(diet);
+  });
+
+  // === SETTINGS ===
+  app.get(api.settings.list.path, requireAdmin, async (req, res) => {
+    const all = await storage.getSettings();
+    res.json(all);
+  });
+
+  app.get(api.settings.get.path, requireAuth, async (req, res) => {
+    const setting = await storage.getSetting(req.params.key);
+    if (!setting) return res.status(404).json({ message: "Setting not found" });
+    res.json(setting);
+  });
+
+  app.put(api.settings.update.path, requireAdmin, async (req, res) => {
+    const { value } = req.body;
+    const updated = await storage.setSetting(req.params.key, value);
+    res.json(updated);
+  });
+
+  // === MEMBER SELF-SERVICE (Profile) ===
+  app.get(api.profile.me.path, requireAuth, async (req, res) => {
+    const member = await storage.getMemberByUserId(req.user!.id);
+    if (!member) return res.status(404).json({ message: "Profile not found" });
+    res.json(member);
+  });
+
+  app.post(api.profile.checkInSelf.path, requireAuth, async (req, res) => {
+    try {
+      const member = await storage.getMemberByUserId(req.user!.id);
+      if (!member) return res.status(400).json({ message: "Profile not found" });
+      if (member.status !== 'active') return res.status(400).json({ message: "Membership inactive" });
+      
+      // Check capacity
+      const capacitySetting = await storage.getSetting('gym_capacity');
+      const capacity = capacitySetting ? parseInt(capacitySetting.value) : 50;
+      const live = await storage.getLiveAttendance();
+      if (live.length >= capacity) {
+        return res.status(400).json({ message: "Gym at full capacity" });
+      }
+      
+      // Check if already checked in
+      const status = await storage.isCheckedIn(member.id);
+      if (status.isCheckedIn) {
+        return res.status(400).json({ message: "Already checked in" });
+      }
+      
+      const entry = await storage.checkIn(member.id);
+      res.json(entry);
+    } catch (e) {
+      res.status(400).json({ message: (e as Error).message });
+    }
+  });
+
+  app.post(api.profile.checkOutSelf.path, requireAuth, async (req, res) => {
+    try {
+      const member = await storage.getMemberByUserId(req.user!.id);
+      if (!member) return res.status(400).json({ message: "Profile not found" });
+      
+      const entry = await storage.checkOut(member.id);
+      res.json(entry);
+    } catch (e) {
+      res.status(400).json({ message: (e as Error).message });
+    }
+  });
+
+  app.get(api.profile.isCheckedIn.path, requireAuth, async (req, res) => {
+    const member = await storage.getMemberByUserId(req.user!.id);
+    if (!member) return res.json({ isCheckedIn: false, attendance: null });
+    const status = await storage.isCheckedIn(member.id);
+    res.json(status);
+  });
+
+  app.get(api.profile.myAttendance.path, requireAuth, async (req, res) => {
+    const member = await storage.getMemberByUserId(req.user!.id);
+    if (!member) return res.json([]);
+    const history = await storage.getAttendanceHistory(member.id);
+    res.json(history);
+  });
+
+  app.get(api.profile.myWorkouts.path, requireAuth, async (req, res) => {
+    const member = await storage.getMemberByUserId(req.user!.id);
+    if (!member) return res.json([]);
+    const list = await storage.getWorkouts(member.id);
+    res.json(list);
+  });
+
+  app.get(api.profile.myPayments.path, requireAuth, async (req, res) => {
+    const member = await storage.getMemberByUserId(req.user!.id);
+    if (!member) return res.json([]);
+    const list = await storage.getPayments(member.id);
+    res.json(list);
   });
 
   // Seed Database on startup
@@ -312,6 +423,48 @@ export async function seedDatabase() {
       active: true,
       image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&q=80&w=1000"
     });
+
+    await storage.createProduct({
+      name: "Pre-Workout Energy",
+      category: "Supplements",
+      price: "34.99",
+      stock: 75,
+      active: true,
+      image: null
+    });
+
+    // Create default settings
+    await storage.setSetting('gym_capacity', '50');
+    await storage.setSetting('gym_name', 'FitZone Gym');
+    await storage.setSetting('monthly_fee_classic', '29.99');
+    await storage.setSetting('monthly_fee_premium', '49.99');
+    await storage.setSetting('monthly_fee_vip', '79.99');
+    await storage.setSetting('grace_period_days', '5');
+    await storage.setSetting('enable_store', 'true');
+    await storage.setSetting('enable_workouts', 'true');
+    await storage.setSetting('enable_diets', 'true');
+
+    // Create a sample member
+    const memberPass = await (storage as any).hashPassword("member123");
+    await storage.createMember(
+      {
+        username: "john",
+        password: memberPass,
+        role: "member",
+        isActive: true
+      },
+      {
+        fullName: "John Member",
+        email: "john@example.com",
+        phone: "555-1234",
+        gender: "male",
+        monthlyFee: "29.99",
+        joinDate: new Date().toISOString(),
+        nextDueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        status: "active",
+        planType: "classic"
+      }
+    );
 
     console.log("Database seeded!");
   }

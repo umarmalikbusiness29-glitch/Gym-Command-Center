@@ -228,6 +228,110 @@ export const api = {
         200: z.custom<typeof workouts.$inferSelect>(),
       },
     },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/workouts/:id',
+      responses: {
+        200: z.object({ message: z.string() }),
+      },
+    },
+  },
+  settings: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/settings',
+      responses: {
+        200: z.array(z.object({ key: z.string(), value: z.string() })),
+      },
+    },
+    get: {
+      method: 'GET' as const,
+      path: '/api/settings/:key',
+      responses: {
+        200: z.object({ key: z.string(), value: z.string() }),
+        404: errorSchemas.notFound,
+      },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/settings/:key',
+      input: z.object({ value: z.string() }),
+      responses: {
+        200: z.object({ key: z.string(), value: z.string() }),
+      },
+    },
+  },
+  profile: {
+    me: {
+      method: 'GET' as const,
+      path: '/api/profile/me',
+      responses: {
+        200: memberWithProfileSchema,
+        404: errorSchemas.notFound,
+      },
+    },
+    checkInSelf: {
+      method: 'POST' as const,
+      path: '/api/profile/check-in',
+      responses: {
+        200: z.custom<typeof attendance.$inferSelect>(),
+        400: z.object({ message: z.string() }),
+      },
+    },
+    checkOutSelf: {
+      method: 'POST' as const,
+      path: '/api/profile/check-out',
+      responses: {
+        200: z.custom<typeof attendance.$inferSelect>(),
+        400: z.object({ message: z.string() }),
+      },
+    },
+    myAttendance: {
+      method: 'GET' as const,
+      path: '/api/profile/attendance',
+      responses: {
+        200: z.array(z.custom<typeof attendance.$inferSelect>()),
+      },
+    },
+    myWorkouts: {
+      method: 'GET' as const,
+      path: '/api/profile/workouts',
+      responses: {
+        200: z.array(z.custom<typeof workouts.$inferSelect>()),
+      },
+    },
+    myPayments: {
+      method: 'GET' as const,
+      path: '/api/profile/payments',
+      responses: {
+        200: z.array(z.custom<typeof payments.$inferSelect>()),
+      },
+    },
+    isCheckedIn: {
+      method: 'GET' as const,
+      path: '/api/profile/check-status',
+      responses: {
+        200: z.object({ isCheckedIn: z.boolean(), attendance: z.custom<typeof attendance.$inferSelect>().nullable() }),
+      },
+    },
+  },
+  diets: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/diets',
+      input: z.object({ memberId: z.coerce.number().optional() }).optional(),
+      responses: {
+        200: z.array(z.custom<typeof diets.$inferSelect>()),
+      },
+    },
+    assign: {
+      method: 'POST' as const,
+      path: '/api/diets',
+      input: insertDietSchema,
+      responses: {
+        201: z.custom<typeof diets.$inferSelect>(),
+      },
+    },
   },
 };
 
