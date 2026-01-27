@@ -63,10 +63,13 @@ export async function registerRoutes(
     try {
       const input = api.members.create.input.parse(req.body);
       
+      // Hash the password before storing
+      const hashedPassword = await (storage as any).hashPassword(input.password);
+      
       // Extract user info and member info
       const userInfo = {
         username: input.username,
-        password: input.password,
+        password: hashedPassword,
         role: "member" as const,
         isActive: true
       };
