@@ -99,10 +99,49 @@ export async function registerRoutes(
     }
   });
 
-  app.patch(api.members.update.path, requireStaff, async (req, res) => {
+  app.patch(api.members.update.path, requireAdmin, async (req, res) => {
     const id = Number(req.params.id);
+    
+    // Server-side validation - never trust frontend
     const input = api.members.update.input.parse(req.body);
-    const updated = await storage.updateMember(id, input);
+    
+    // Get current member to find userId
+    const member = await storage.getMember(id);
+    if (!member) return res.status(404).json({ message: "Member not found" });
+    
+    // Extract credential updates (handled separately)
+    const { username, newPassword, ...memberUpdates } = input;
+    
+    // Handle credential updates on the backend
+    if (username || newPassword) {
+      const userUpdates: any = {};
+      
+      // Validate and update username
+      if (username) {
+        // Check if username already taken by another user
+        const existingUser = await storage.getUserByUsername(username);
+        if (existingUser && existingUser.id !== member.userId) {
+          return res.status(400).json({ message: "Username already taken" });
+        }
+        userUpdates.username = username;
+      }
+      
+      // Hash new password on the backend - never trust frontend with passwords
+      if (newPassword) {
+        if (newPassword.length < 6) {
+          return res.status(400).json({ message: "Password must be at least 6 characters" });
+        }
+        userUpdates.password = await (storage as any).hashPassword(newPassword);
+      }
+      
+      // Update user credentials
+      if (Object.keys(userUpdates).length > 0) {
+        await storage.updateUser(member.userId, userUpdates);
+      }
+    }
+    
+    // Update member profile data
+    const updated = await storage.updateMember(id, memberUpdates);
     res.json(updated);
   });
 

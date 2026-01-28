@@ -89,7 +89,10 @@ export const api = {
     update: {
       method: 'PATCH' as const,
       path: '/api/members/:id',
-      input: insertMemberSchema.partial(),
+      input: insertMemberSchema.partial().extend({
+        username: z.string().min(3).max(50).optional(),
+        newPassword: z.string().min(6).optional(),
+      }),
       responses: {
         200: memberWithProfileSchema,
         404: errorSchemas.notFound,

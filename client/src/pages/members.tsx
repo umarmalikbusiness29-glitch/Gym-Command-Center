@@ -377,45 +377,65 @@ export default function MembersPage() {
             <form onSubmit={(e) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
-              updateMutation.mutate({
-                id: editMember.id,
-                updates: {
-                  fullName: formData.get("fullName"),
-                  email: formData.get("email"),
-                  phone: formData.get("phone"),
-                  planType: formData.get("planType"),
-                  monthlyFee: Number(formData.get("monthlyFee")),
-                }
-              });
+              const newPassword = formData.get("newPassword") as string;
+              const updates: any = {
+                fullName: formData.get("fullName"),
+                email: formData.get("email"),
+                phone: formData.get("phone"),
+                planType: formData.get("planType"),
+                monthlyFee: Number(formData.get("monthlyFee")),
+                username: formData.get("username"),
+              };
+              if (newPassword && newPassword.length > 0) {
+                updates.newPassword = newPassword;
+              }
+              updateMutation.mutate({ id: editMember.id, updates });
             }} className="space-y-4">
+              <div className="border-b pb-3 mb-3">
+                <p className="text-sm font-medium text-muted-foreground mb-3">Login Credentials</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-username">Username</Label>
+                    <Input id="edit-username" name="username" defaultValue={editMember.user?.username || ""} data-testid="input-edit-username" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-newPassword">New Password</Label>
+                    <Input id="edit-newPassword" name="newPassword" type="password" placeholder="Leave blank to keep current" data-testid="input-edit-password" />
+                  </div>
+                </div>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-fullName">Full Name</Label>
                 <Input id="edit-fullName" name="fullName" defaultValue={editMember.fullName} data-testid="input-edit-fullName" />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-email">Email</Label>
-                <Input id="edit-email" name="email" type="email" defaultValue={editMember.email || ""} data-testid="input-edit-email" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-email">Email</Label>
+                  <Input id="edit-email" name="email" type="email" defaultValue={editMember.email || ""} data-testid="input-edit-email" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-phone">Phone</Label>
+                  <Input id="edit-phone" name="phone" defaultValue={editMember.phone || ""} data-testid="input-edit-phone" />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-phone">Phone</Label>
-                <Input id="edit-phone" name="phone" defaultValue={editMember.phone || ""} data-testid="input-edit-phone" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-planType">Plan Type</Label>
-                <Select name="planType" defaultValue={editMember.planType}>
-                  <SelectTrigger data-testid="select-edit-planType">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="classic">Classic</SelectItem>
-                    <SelectItem value="premium">Premium</SelectItem>
-                    <SelectItem value="vip">VIP</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-monthlyFee">Monthly Fee ($)</Label>
-                <Input id="edit-monthlyFee" name="monthlyFee" type="number" defaultValue={editMember.monthlyFee} data-testid="input-edit-monthlyFee" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-planType">Plan Type</Label>
+                  <Select name="planType" defaultValue={editMember.planType}>
+                    <SelectTrigger data-testid="select-edit-planType">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="classic">Classic</SelectItem>
+                      <SelectItem value="premium">Premium</SelectItem>
+                      <SelectItem value="vip">VIP</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-monthlyFee">Monthly Fee ($)</Label>
+                  <Input id="edit-monthlyFee" name="monthlyFee" type="number" defaultValue={editMember.monthlyFee} data-testid="input-edit-monthlyFee" />
+                </div>
               </div>
               <div className="flex justify-end gap-2 pt-4">
                 <Button type="button" variant="outline" onClick={() => setEditMember(null)}>Cancel</Button>
