@@ -34,6 +34,7 @@ export default function MembersPage() {
   const [search, setSearch] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [viewMember, setViewMember] = useState<any>(null);
+  const [editMember, setEditMember] = useState<any>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -47,6 +48,23 @@ export default function MembersPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [api.members.list.path] });
       toast({ title: "Success", description: `Member ${data.status === 'frozen' ? 'frozen' : 'unfrozen'} successfully` });
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Failed", description: err.message });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: { id: number; updates: any }) => {
+      const url = buildUrl(api.members.update.path, { id: data.id });
+      const res = await fetch(url, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data.updates) });
+      if (!res.ok) throw new Error("Failed to update member");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.members.list.path] });
+      toast({ title: "Success", description: "Member updated successfully" });
+      setEditMember(null);
     },
     onError: (err: Error) => {
       toast({ variant: "destructive", title: "Failed", description: err.message });
@@ -255,6 +273,13 @@ export default function MembersPage() {
                                 View Details
                               </DropdownMenuItem>
                               <DropdownMenuItem 
+                                data-testid={`button-edit-member-${member.id}`}
+                                onClick={() => setEditMember(member)}
+                              >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit Profile
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
                                 data-testid={`button-freeze-member-${member.id}`}
                                 className={member.status === 'frozen' ? 'text-green-500' : 'text-destructive'}
                                 onClick={() => freezeMutation.mutate(member.id)}
@@ -339,6 +364,66 @@ export default function MembersPage() {
                 </Button>
               </div>
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editMember} onOpenChange={() => setEditMember(null)}>
+        <DialogContent className="max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle>Edit Member</DialogTitle>
+          </DialogHeader>
+          {editMember && (
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              updateMutation.mutate({
+                id: editMember.id,
+                updates: {
+                  fullName: formData.get("fullName"),
+                  email: formData.get("email"),
+                  phone: formData.get("phone"),
+                  planType: formData.get("planType"),
+                  monthlyFee: Number(formData.get("monthlyFee")),
+                }
+              });
+            }} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-fullName">Full Name</Label>
+                <Input id="edit-fullName" name="fullName" defaultValue={editMember.fullName} data-testid="input-edit-fullName" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-email">Email</Label>
+                <Input id="edit-email" name="email" type="email" defaultValue={editMember.email || ""} data-testid="input-edit-email" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-phone">Phone</Label>
+                <Input id="edit-phone" name="phone" defaultValue={editMember.phone || ""} data-testid="input-edit-phone" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-planType">Plan Type</Label>
+                <Select name="planType" defaultValue={editMember.planType}>
+                  <SelectTrigger data-testid="select-edit-planType">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="classic">Classic</SelectItem>
+                    <SelectItem value="premium">Premium</SelectItem>
+                    <SelectItem value="vip">VIP</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-monthlyFee">Monthly Fee ($)</Label>
+                <Input id="edit-monthlyFee" name="monthlyFee" type="number" defaultValue={editMember.monthlyFee} data-testid="input-edit-monthlyFee" />
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button type="button" variant="outline" onClick={() => setEditMember(null)}>Cancel</Button>
+                <Button type="submit" disabled={updateMutation.isPending} data-testid="button-save-member">
+                  {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </form>
           )}
         </DialogContent>
       </Dialog>
