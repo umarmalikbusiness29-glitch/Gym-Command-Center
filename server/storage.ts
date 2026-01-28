@@ -40,7 +40,10 @@ export interface IStorage {
   // Products & Orders
   getProducts(): Promise<Product[]>;
   createProduct(product: InsertProduct): Promise<Product>;
-  createOrder(order: any): Promise<Order>; // Simplified type for brevity in storage interface
+  createOrder(order: any, status?: string): Promise<Order>;
+  getOrders(status?: string): Promise<Order[]>;
+  approveOrder(id: number): Promise<Order>;
+  deleteOrder(id: number): Promise<void>;
 
   // Workouts
   getWorkouts(memberId?: number, date?: string): Promise<Workout[]>;
@@ -217,46 +220,95 @@ export class DatabaseStorage implements IStorage {
     return newProduct;
   }
 
-  async createOrder(orderData: any): Promise<Order> {
+  async createOrder(orderData: any, status: string = "pending"): Promise<Order> {
     return await db.transaction(async (tx) => {
-      // Create order
-      const [order] = await tx.insert(orders).values({
-        memberId: orderData.memberId,
-        totalAmount: "0", // calc later
-        items: orderData.items,
-        status: "completed"
-      }).returning();
-      
-      // Update stock (simplified, loop)
+      // Calculate total first
       let total = 0;
       for (const item of orderData.items) {
         const [prod] = await tx.select().from(products).where(eq(products.id, item.productId));
         if (prod) {
-           total += Number(prod.price) * item.quantity;
-           await tx.update(products)
-             .set({ stock: prod.stock - item.quantity })
-             .where(eq(products.id, item.productId));
+          total += Number(prod.price) * item.quantity;
         }
       }
       
-      // Update total
-      const [finalOrder] = await tx.update(orders)
-        .set({ totalAmount: total.toString() })
-        .where(eq(orders.id, order.id))
-        .returning();
+      // Create order with calculated total
+      const [order] = await tx.insert(orders).values({
+        memberId: orderData.memberId,
+        totalAmount: total.toString(),
+        items: orderData.items,
+        status
+      }).returning();
+
+      // If completing immediately (admin purchase), update stock and create payment
+      if (status === "completed") {
+        for (const item of orderData.items) {
+          const [prod] = await tx.select().from(products).where(eq(products.id, item.productId));
+          if (prod) {
+            await tx.update(products)
+              .set({ stock: prod.stock - item.quantity })
+              .where(eq(products.id, item.productId));
+          }
+        }
         
+        await tx.insert(payments).values({
+          memberId: orderData.memberId,
+          amount: total.toString(),
+          type: "product_purchase",
+          status: "paid",
+          description: `Order #${order.id}`,
+          paidDate: new Date(),
+        });
+      }
+
+      return order;
+    });
+  }
+
+  async getOrders(status?: string): Promise<Order[]> {
+    if (status) {
+      return await db.select().from(orders).where(eq(orders.status, status)).orderBy(orders.createdAt);
+    }
+    return await db.select().from(orders).orderBy(orders.createdAt);
+  }
+
+  async approveOrder(id: number): Promise<Order> {
+    return await db.transaction(async (tx) => {
+      const [order] = await tx.select().from(orders).where(eq(orders.id, id));
+      if (!order) throw new Error("Order not found");
+      
+      // Update stock for each item
+      const items = order.items as { productId: number; quantity: number }[];
+      for (const item of items) {
+        const [prod] = await tx.select().from(products).where(eq(products.id, item.productId));
+        if (prod) {
+          await tx.update(products)
+            .set({ stock: prod.stock - item.quantity })
+            .where(eq(products.id, item.productId));
+        }
+      }
+      
       // Create payment record
       await tx.insert(payments).values({
-        memberId: orderData.memberId,
-        amount: total.toString(),
+        memberId: order.memberId,
+        amount: order.totalAmount,
         type: "product_purchase",
         status: "paid",
         description: `Order #${order.id}`,
         paidDate: new Date(),
       });
-
-      return finalOrder;
+      
+      // Update order status
+      const [updated] = await tx.update(orders)
+        .set({ status: "completed" })
+        .where(eq(orders.id, id))
+        .returning();
+      
+      return updated;
     });
+  }
+
+  async deleteOrder(id: number): Promise<void> {
+    await db.delete(orders).where(eq(orders.id, id));
   }
 
   async getWorkouts(memberId?: number, date?: string): Promise<Workout[]> {

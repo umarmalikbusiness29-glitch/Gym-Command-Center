@@ -216,11 +216,42 @@ export async function registerRoutes(
   });
 
   app.post(api.products.purchase.path, requireAuth, async (req, res) => {
-    // Anyone can purchase? Or just members purchasing for themselves?
-    // Let's assume staff can purchase for members too.
     const input = api.products.purchase.input.parse(req.body);
-    const order = await storage.createOrder(input);
+    
+    // Members create pending order requests, admin/staff complete immediately
+    const status = req.user!.role === 'member' ? 'pending' : 'completed';
+    const order = await storage.createOrder(input, status);
     res.status(201).json(order);
+  });
+
+  // Orders management
+  app.get(api.orders.list.path, requireAuth, async (req, res) => {
+    const status = req.query.status as string | undefined;
+    
+    // Members only see their own orders
+    if (req.user!.role === 'member') {
+      const member = await storage.getMemberByUserId(req.user!.id);
+      if (!member) return res.json([]);
+      const allOrders = await storage.getOrders(status);
+      const memberOrders = allOrders.filter(o => o.memberId === member.id);
+      return res.json(memberOrders);
+    }
+    
+    // Admin/staff see all orders
+    const orders = await storage.getOrders(status);
+    res.json(orders);
+  });
+
+  app.patch(api.orders.approve.path, requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    const order = await storage.approveOrder(id);
+    res.json(order);
+  });
+
+  app.delete(api.orders.reject.path, requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    await storage.deleteOrder(id);
+    res.json({ message: "Order rejected" });
   });
 
   // === WORKOUTS ===

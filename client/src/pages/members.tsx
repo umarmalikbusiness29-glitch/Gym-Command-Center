@@ -4,17 +4,19 @@ import { useMembers } from "@/hooks/use-members";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, MoreHorizontal, UserX, UserCheck, Loader2 } from "lucide-react";
+import { Search, Plus, MoreHorizontal, Loader2, Eye, Edit, Snowflake } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { api } from "@shared/routes";
+import { api, buildUrl } from "@shared/routes";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 // Schema for creating member + user
 const createMemberSchema = z.intersection(
@@ -31,6 +33,25 @@ export default function MembersPage() {
   const { members, isLoading, createMember, isCreating } = useMembers();
   const [search, setSearch] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  const [viewMember, setViewMember] = useState<any>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const freezeMutation = useMutation({
+    mutationFn: async (memberId: number) => {
+      const url = buildUrl(api.members.freeze.path, { id: memberId });
+      const res = await fetch(url, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to update status");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [api.members.list.path] });
+      toast({ title: "Success", description: `Member ${data.status === 'frozen' ? 'frozen' : 'unfrozen'} successfully` });
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Failed", description: err.message });
+    },
+  });
 
   const form = useForm<CreateMemberForm>({
     resolver: zodResolver(createMemberSchema),
@@ -221,14 +242,24 @@ export default function MembersPage() {
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
+                              <Button variant="ghost" className="h-8 w-8 p-0" data-testid={`button-member-actions-${member.id}`}>
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>View Details</DropdownMenuItem>
-                              <DropdownMenuItem>Edit Profile</DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive">
+                              <DropdownMenuItem 
+                                data-testid={`button-view-member-${member.id}`}
+                                onClick={() => setViewMember(member)}
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                data-testid={`button-freeze-member-${member.id}`}
+                                className={member.status === 'frozen' ? 'text-green-500' : 'text-destructive'}
+                                onClick={() => freezeMutation.mutate(member.id)}
+                              >
+                                <Snowflake className="h-4 w-4 mr-2" />
                                 {member.status === 'active' ? 'Freeze Membership' : 'Unfreeze Membership'}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -243,6 +274,74 @@ export default function MembersPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={!!viewMember} onOpenChange={() => setViewMember(null)}>
+        <DialogContent className="max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle>Member Details</DialogTitle>
+          </DialogHeader>
+          {viewMember && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground text-xs">Full Name</Label>
+                  <p className="font-medium">{viewMember.fullName}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Username</Label>
+                  <p className="font-medium">@{viewMember.user?.username}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Email</Label>
+                  <p className="font-medium">{viewMember.email || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Phone</Label>
+                  <p className="font-medium">{viewMember.phone || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Plan</Label>
+                  <Badge variant="outline" className="capitalize">{viewMember.planType}</Badge>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Status</Label>
+                  <Badge variant={viewMember.status === 'active' ? 'default' : 'destructive'} className="capitalize">
+                    {viewMember.status}
+                  </Badge>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Monthly Fee</Label>
+                  <p className="font-medium">${viewMember.monthlyFee}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Gender</Label>
+                  <p className="font-medium capitalize">{viewMember.gender}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Join Date</Label>
+                  <p className="font-medium">{viewMember.joinDate}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Next Due Date</Label>
+                  <p className="font-medium">{viewMember.nextDueDate}</p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button 
+                  variant={viewMember.status === 'frozen' ? 'default' : 'destructive'}
+                  onClick={() => {
+                    freezeMutation.mutate(viewMember.id);
+                    setViewMember(null);
+                  }}
+                >
+                  <Snowflake className="h-4 w-4 mr-2" />
+                  {viewMember.status === 'active' ? 'Freeze' : 'Unfreeze'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </LayoutShell>
   );
 }

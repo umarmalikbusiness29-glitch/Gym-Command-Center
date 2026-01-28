@@ -1,16 +1,17 @@
 import LayoutShell from "@/components/layout-shell";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@shared/routes";
+import { api, buildUrl } from "@shared/routes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ShoppingBag, Plus, Minus, ShoppingCart, Package } from "lucide-react";
+import { ShoppingBag, Plus, Minus, ShoppingCart, Package, Check, X, ClipboardList } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useState } from "react";
 
 export default function POSPage() {
@@ -50,7 +51,17 @@ export default function POSPage() {
       if (!res.ok) throw new Error("Failed to fetch profile");
       return res.json();
     },
-    enabled: !isAdmin,
+    enabled: user?.role === 'member',
+  });
+
+  const { data: pendingOrders } = useQuery({
+    queryKey: [api.orders.list.path, 'pending'],
+    queryFn: async () => {
+      const res = await fetch(`${api.orders.list.path}?status=pending`);
+      if (!res.ok) throw new Error("Failed to fetch orders");
+      return res.json();
+    },
+    enabled: isAdmin,
   });
 
   const addProductMutation = useMutation({
@@ -98,12 +109,49 @@ export default function POSPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.products.list.path] });
-      toast({ title: "Purchase Complete", description: "Order has been processed" });
+      if (isAdmin) {
+        toast({ title: "Purchase Complete", description: "Order has been processed" });
+      } else {
+        toast({ title: "Order Requested", description: "Your order has been sent to admin for approval" });
+      }
       setCart([]);
       setSelectedMember("");
     },
     onError: (err: Error) => {
-      toast({ variant: "destructive", title: "Purchase failed", description: err.message });
+      toast({ variant: "destructive", title: "Request failed", description: err.message });
+    },
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: async (orderId: number) => {
+      const url = buildUrl(api.orders.approve.path, { id: orderId });
+      const res = await fetch(url, { method: "PATCH" });
+      if (!res.ok) throw new Error("Failed to approve order");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.orders.list.path, 'pending'] });
+      queryClient.invalidateQueries({ queryKey: [api.products.list.path] });
+      toast({ title: "Order Approved", description: "Order has been completed" });
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Failed to approve", description: err.message });
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async (orderId: number) => {
+      const url = buildUrl(api.orders.reject.path, { id: orderId });
+      const res = await fetch(url, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to reject order");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.orders.list.path, 'pending'] });
+      toast({ title: "Order Rejected", description: "Order has been cancelled" });
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Failed to reject", description: err.message });
     },
   });
 
@@ -317,13 +365,78 @@ export default function POSPage() {
                     onClick={() => purchaseMutation.mutate()}
                     disabled={purchaseMutation.isPending || (isAdmin && !selectedMember)}
                   >
-                    {purchaseMutation.isPending ? "Processing..." : "Complete Purchase"}
+                    {purchaseMutation.isPending ? "Processing..." : isAdmin ? "Complete Purchase" : "Request Order"}
                   </Button>
                 </>
               )}
             </CardContent>
           </Card>
         </div>
+
+        {isAdmin && pendingOrders && pendingOrders.length > 0 && (
+          <Card className="border-none shadow-lg bg-card/50 mt-8">
+            <CardHeader className="flex flex-row items-center gap-2">
+              <ClipboardList className="h-5 w-5 text-primary" />
+              <CardTitle>Pending Order Requests</CardTitle>
+              <Badge variant="secondary" className="ml-2">{pendingOrders.length}</Badge>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order ID</TableHead>
+                    <TableHead>Member</TableHead>
+                    <TableHead>Items</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingOrders.map((order: any) => {
+                    const member = members?.find((m: any) => m.id === order.memberId);
+                    const items = order.items as { productId: number; quantity: number }[];
+                    return (
+                      <TableRow key={order.id}>
+                        <TableCell className="font-medium">#{order.id}</TableCell>
+                        <TableCell>{member?.fullName || `Member #${order.memberId}`}</TableCell>
+                        <TableCell>
+                          {items.map((item, i) => {
+                            const prod = products?.find((p: any) => p.id === item.productId);
+                            return <span key={i}>{prod?.name || `Product #${item.productId}`} x{item.quantity}{i < items.length - 1 ? ", " : ""}</span>;
+                          })}
+                        </TableCell>
+                        <TableCell className="font-bold text-primary">${order.totalAmount}</TableCell>
+                        <TableCell>{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "-"}</TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button
+                            data-testid={`button-approve-order-${order.id}`}
+                            size="sm"
+                            onClick={() => approveMutation.mutate(order.id)}
+                            disabled={approveMutation.isPending}
+                          >
+                            <Check className="h-4 w-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            data-testid={`button-reject-order-${order.id}`}
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => rejectMutation.mutate(order.id)}
+                            disabled={rejectMutation.isPending}
+                          >
+                            <X className="h-4 w-4 mr-1" />
+                            Reject
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </LayoutShell>
   );

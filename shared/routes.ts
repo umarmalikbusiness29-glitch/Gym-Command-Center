@@ -203,6 +203,29 @@ export const api = {
       },
     },
   },
+  orders: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/orders',
+      responses: {
+        200: z.array(z.custom<typeof orders.$inferSelect>()),
+      },
+    },
+    approve: {
+      method: 'PATCH' as const,
+      path: '/api/orders/:id/approve',
+      responses: {
+        200: z.custom<typeof orders.$inferSelect>(),
+      },
+    },
+    reject: {
+      method: 'DELETE' as const,
+      path: '/api/orders/:id',
+      responses: {
+        200: z.object({ message: z.string() }),
+      },
+    },
+  },
   workouts: {
     list: {
       method: 'GET' as const,
