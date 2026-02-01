@@ -1,5 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@shared/routes";
 import { 
   Dumbbell, 
   LayoutDashboard, 
@@ -14,7 +16,7 @@ import {
   UserCircle,
   ClipboardCheck
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -22,6 +24,22 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
   const { user, logout } = useAuth();
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const { data: settings } = useQuery({
+    queryKey: [api.settings.list.path],
+    queryFn: async () => {
+      const res = await fetch(api.settings.list.path);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: Infinity,
+  });
+
+  const gymName = useMemo(() => {
+    if (!settings) return "IRON";
+    const setting = settings.find((s: any) => s.key === "gym_name");
+    return setting?.value || "IRON";
+  }, [settings]);
 
   const isAdmin = user?.role === "admin";
   const isTrainer = user?.role === "trainer";
@@ -44,7 +62,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
       <div className="md:hidden flex items-center justify-between p-4 border-b border-border bg-card">
         <div className="flex items-center gap-2">
           <Dumbbell className="h-6 w-6 text-primary" />
-          <span className="font-display font-bold text-xl tracking-tight">IRON<span className="text-primary">CORE</span></span>
+          <span className="font-display font-bold text-xl tracking-tight">{gymName}<span className="text-accent">CORE</span></span>
         </div>
         <Button variant="ghost" size="icon" onClick={() => setMobileOpen(!mobileOpen)}>
           {mobileOpen ? <X /> : <Menu />}
@@ -60,7 +78,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
           <div className="bg-primary/20 p-2 rounded-lg">
             <Dumbbell className="h-6 w-6 text-primary" />
           </div>
-          <span className="font-display font-bold text-xl tracking-tight">IRON<span className="text-primary">CORE</span></span>
+          <span className="font-display font-bold text-xl tracking-tight">{gymName}<span className="text-accent">CORE</span></span>
         </div>
 
         <div className="p-6 md:hidden">

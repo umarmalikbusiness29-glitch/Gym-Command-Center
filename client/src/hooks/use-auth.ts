@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { getApiUrl } from "@/lib/api";
 
 type LoginCredentials = z.infer<typeof api.auth.login.input>;
 
@@ -12,21 +13,22 @@ export function useAuth() {
   const userQuery = useQuery({
     queryKey: [api.auth.me.path],
     queryFn: async () => {
-      const res = await fetch(api.auth.me.path);
+      const res = await fetch(getApiUrl(api.auth.me.path));
       if (res.status === 401) return null;
       if (!res.ok) throw new Error("Failed to fetch user");
       return api.auth.me.responses[200].parse(await res.json());
     },
     retry: false,
-    staleTime: Infinity, // Don't refetch automatically
+    staleTime: Infinity,
   });
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginCredentials) => {
-      const res = await fetch(api.auth.login.path, {
+      const res = await fetch(getApiUrl(api.auth.login.path), {
         method: api.auth.login.method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(credentials),
+        credentials: "include",
       });
 
       if (!res.ok) {
@@ -52,14 +54,15 @@ export function useAuth() {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(api.auth.logout.path, {
+      const res = await fetch(getApiUrl(api.auth.logout.path), {
         method: api.auth.logout.method,
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Logout failed");
     },
     onSuccess: () => {
       queryClient.setQueryData([api.auth.me.path], null);
-      queryClient.clear(); // Clear all data on logout
+      queryClient.clear();
       toast({ title: "Logged out", description: "See you next time!" });
     },
   });

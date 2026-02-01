@@ -6,21 +6,36 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Dumbbell, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const { login, isLoggingIn, user } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const { user, login } = useAuth();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   if (user) {
     setLocation("/dashboard");
     return null;
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    login({ username, password });
+    setIsLoading(true);
+
+    try {
+      login({ username, password });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Login failed",
+        description: error.message || "An error occurred",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -37,9 +52,11 @@ export default function LoginPage() {
             <Dumbbell className="w-6 h-6 text-white" />
           </div>
           <div className="space-y-2">
-            <CardTitle className="text-3xl font-display font-bold">Welcome back</CardTitle>
+            <CardTitle className="text-3xl font-display font-bold">
+              Welcome back
+            </CardTitle>
             <CardDescription className="text-base">
-              Enter your credentials to access the system
+              Sign in with your username and password
             </CardDescription>
           </div>
         </CardHeader>
@@ -72,9 +89,9 @@ export default function LoginPage() {
             <Button 
               type="submit" 
               className="w-full h-11 text-base font-medium shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all" 
-              disabled={isLoggingIn}
+              disabled={isLoading}
             >
-              {isLoggingIn ? (
+              {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Signing in...
@@ -86,7 +103,7 @@ export default function LoginPage() {
           </form>
           <div className="mt-6 text-center text-sm text-muted-foreground">
             <p>Demo Credentials:</p>
-            <p className="font-mono mt-1">admin / admin</p>
+            <p className="font-mono mt-1">admin / admin123</p>
           </div>
         </CardContent>
       </Card>

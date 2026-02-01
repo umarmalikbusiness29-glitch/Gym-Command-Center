@@ -17,6 +17,7 @@ import { api, buildUrl } from "@shared/routes";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { AIDietCoach } from "@/components/ai-diet-coach";
 
 // Schema for creating member + user
 const createMemberSchema = z.intersection(
@@ -301,12 +302,12 @@ export default function MembersPage() {
       </div>
 
       <Dialog open={!!viewMember} onOpenChange={() => setViewMember(null)}>
-        <DialogContent className="max-w-md bg-card border-border">
+        <DialogContent className="max-w-2xl bg-card border-border max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Member Details</DialogTitle>
           </DialogHeader>
           {viewMember && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-muted-foreground text-xs">Full Name</Label>
@@ -351,6 +352,16 @@ export default function MembersPage() {
                   <p className="font-medium">{viewMember.nextDueDate}</p>
                 </div>
               </div>
+
+              <div className="border-t pt-4">
+                <h3 className="font-semibold mb-3">AI Nutrition Assistant</h3>
+                <AIDietCoach 
+                  memberId={viewMember.id}
+                  memberName={viewMember.fullName}
+                  memberGender={viewMember.gender}
+                />
+              </div>
+
               <div className="flex justify-end gap-2 pt-4">
                 <Button 
                   variant={viewMember.status === 'frozen' ? 'default' : 'destructive'}

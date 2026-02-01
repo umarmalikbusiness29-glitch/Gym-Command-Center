@@ -432,10 +432,164 @@ export async function registerRoutes(
     res.json(list);
   });
 
+  // === AI DIET COACH ===
+  app.post("/api/ai/diet-plan", requireAuth, async (req, res) => {
+    try {
+      const { prompt } = req.body;
+
+      if (!prompt) {
+        return res.status(400).json({ error: "Prompt is required" });
+      }
+
+      // Using a simple AI response generation
+      // In production, integrate with OpenAI, Anthropic, or similar
+      const dietPlan = generateDietPlan(prompt);
+
+      res.json({ plan: dietPlan });
+    } catch (error: any) {
+      console.error("Diet plan generation error:", error);
+      res.status(500).json({ error: "Failed to generate diet plan" });
+    }
+  });
+
   // Seed Database on startup
   await seedDatabase();
 
   return httpServer;
+}
+
+// Helper function to generate AI diet plan (can be replaced with actual AI API)
+function generateDietPlan(prompt: string): string {
+  // This is a template-based response generator
+  // In production, you would call OpenAI API or similar service
+  const lines = prompt.split('\n');
+  
+  let response = "🥗 PERSONALIZED NUTRITION PLAN\n";
+  response += "=" .repeat(50) + "\n\n";
+
+  // Parse the prompt to extract info
+  const getName = () => {
+    const match = prompt.match(/Name:\s*(.+?)\n/);
+    return match ? match[1].trim() : "Member";
+  };
+
+  const getGoal = () => {
+    const match = prompt.match(/Fitness Goal:\s*(.+?)\n/);
+    return match ? match[1].trim() : "General Fitness";
+  };
+
+  const getRestrictions = () => {
+    const match = prompt.match(/Dietary Restrictions:\s*(.+?)\n/);
+    return match ? match[1].trim() : "None";
+  };
+
+  const name = getName();
+  const goal = getGoal();
+  const restrictions = getRestrictions();
+
+  response += `👤 Client: ${name}\n`;
+  response += `🎯 Goal: ${goal}\n`;
+  response += `🚫 Restrictions: ${restrictions}\n\n`;
+
+  response += "📊 DAILY NUTRITION GUIDELINES\n";
+  response += "-" .repeat(50) + "\n";
+  response += "Calories: 2,000-2,500 kcal/day\n";
+  response += "Protein: 150-180g/day (30%)\n";
+  response += "Carbohydrates: 250-300g/day (45%)\n";
+  response += "Fats: 65-85g/day (25%)\n\n";
+
+  response += "🍽️ SAMPLE DAILY MEAL PLAN\n";
+  response += "-" .repeat(50) + "\n";
+  response += "BREAKFAST (7:00 AM)\n";
+  response += "• Oatmeal with berries and almonds\n";
+  response += "• 1 medium banana\n";
+  response += "• Protein powder smoothie\n\n";
+
+  response += "MID-MORNING SNACK (10:00 AM)\n";
+  response += "• Greek yogurt with granola\n";
+  response += "• Apple with almond butter\n\n";
+
+  response += "LUNCH (1:00 PM)\n";
+  response += "• Grilled chicken breast (150g)\n";
+  response += "• Brown rice or sweet potato\n";
+  response += "• Mixed vegetables (broccoli, carrots)\n";
+  response += "• Olive oil dressing\n\n";
+
+  response += "PRE-WORKOUT SNACK (4:00 PM)\n";
+  response += "• Rice cakes with honey\n";
+  response += "• Banana\n\n";
+
+  response += "DINNER (7:00 PM)\n";
+  response += "• Grilled salmon or lean beef (150g)\n";
+  response += "• Quinoa or pasta\n";
+  response += "• Steamed vegetables\n";
+  response += "• Avocado slices\n\n";
+
+  response += "EVENING SNACK (Optional)\n";
+  response += "• Casein protein shake or cottage cheese\n";
+  response += "• Berries\n\n";
+
+  response += "💧 HYDRATION\n";
+  response += "-" .repeat(50) + "\n";
+  response += "Drink 3-4 liters of water daily\n";
+  response += "• 500ml upon waking\n";
+  response += "• 500ml with each meal\n";
+  response += "• 500-750ml during workout\n";
+  response += "• 500ml before bed\n\n";
+
+  response += "✅ FOODS TO INCLUDE\n";
+  response += "-" .repeat(50) + "\n";
+  response += "Proteins: Chicken, turkey, fish, eggs, Greek yogurt, cottage cheese\n";
+  response += "Carbs: Oats, brown rice, sweet potato, quinoa, whole wheat bread\n";
+  response += "Vegetables: Broccoli, spinach, carrots, bell peppers, Brussels sprouts\n";
+  response += "Fruits: Bananas, berries, apples, oranges\n";
+  response += "Healthy Fats: Avocado, almonds, olive oil, fatty fish\n\n";
+
+  response += "❌ FOODS TO AVOID\n";
+  response += "-" .repeat(50) + "\n";
+  response += "• Processed foods and fast food\n";
+  response += "• Sugary drinks and energy drinks\n";
+  response += "• Excessive alcohol\n";
+  response += "• Fried foods\n";
+  response += "• Refined carbohydrates\n";
+  response += "• Trans fats and saturated fats\n\n";
+
+  response += "⏰ MEAL TIMING\n";
+  response += "-" .repeat(50) + "\n";
+  response += "• Eat every 3-4 hours\n";
+  response += "• Breakfast within 1 hour of waking\n";
+  response += "• Pre-workout meal 1.5-2 hours before\n";
+  response += "• Post-workout meal within 30-60 minutes\n";
+  response += "• Final meal 2-3 hours before bed\n\n";
+
+  response += "💡 SUCCESS TIPS\n";
+  response += "-" .repeat(50) + "\n";
+  response += "1. Meal prep on Sundays for the week\n";
+  response += "2. Use a food scale to track portions\n";
+  response += "3. Track macros using MyFitnessPal\n";
+  response += "4. Stay consistent for 4-6 weeks\n";
+  response += "5. Adjust based on progress\n";
+  response += "6. Don't go too extreme on deficits/surpluses\n";
+  response += "7. Quality sleep is important for recovery\n";
+  response += "8. Review and adjust every 2 weeks\n\n";
+
+  response += "📈 EXPECTED RESULTS\n";
+  response += "-" .repeat(50) + "\n";
+  response += "Week 1-2: Adjustment phase, energy levels improve\n";
+  response += "Week 3-4: Noticeable body composition changes\n";
+  response += "Week 5-8: Significant results in strength and appearance\n\n";
+
+  response += "⚠️ IMPORTANT NOTES\n";
+  response += "-" .repeat(50) + "\n";
+  response += "• Consult with a nutritionist for personalized advice\n";
+  response += "• Monitor how your body responds\n";
+  response += "• Adjust portions based on activity level\n";
+  response += "• This plan is a general guideline\n";
+  response += "• Individual needs may vary\n\n";
+
+  response += "Generated: " + new Date().toLocaleString() + "\n";
+
+  return response;
 }
 
 // Helper to seed data

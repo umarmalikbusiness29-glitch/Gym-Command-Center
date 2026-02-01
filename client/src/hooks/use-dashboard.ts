@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 import { useToast } from "@/hooks/use-toast";
+import { getApiUrl } from "@/lib/api";
 
 export function useAttendance() {
   const queryClient = useQueryClient();
@@ -9,7 +10,7 @@ export function useAttendance() {
   const liveQuery = useQuery({
     queryKey: [api.attendance.live.path],
     queryFn: async () => {
-      const res = await fetch(api.attendance.live.path);
+      const res = await fetch(getApiUrl(api.attendance.live.path));
       if (!res.ok) throw new Error("Failed to fetch live data");
       return api.attendance.live.responses[200].parse(await res.json());
     },
@@ -18,7 +19,7 @@ export function useAttendance() {
 
   const checkInMutation = useMutation({
     mutationFn: async (memberId: number) => {
-      const res = await fetch(api.attendance.checkIn.path, {
+      const res = await fetch(getApiUrl(api.attendance.checkIn.path), {
         method: api.attendance.checkIn.method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ memberId }),
@@ -40,7 +41,7 @@ export function useAttendance() {
 
   const checkOutMutation = useMutation({
     mutationFn: async (memberId: number) => {
-      const res = await fetch(api.attendance.checkOut.path, {
+      const res = await fetch(getApiUrl(api.attendance.checkOut.path), {
         method: api.attendance.checkOut.method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ memberId }),
@@ -65,7 +66,7 @@ export function usePaymentStats() {
   return useQuery({
     queryKey: [api.payments.stats.path],
     queryFn: async () => {
-      const res = await fetch(api.payments.stats.path);
+      const res = await fetch(getApiUrl(api.payments.stats.path));
       if (!res.ok) throw new Error("Failed to fetch stats");
       return api.payments.stats.responses[200].parse(await res.json());
     },

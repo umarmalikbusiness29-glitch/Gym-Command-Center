@@ -5,38 +5,38 @@
 @tailwind utilities;
 
 :root {
-  /* Slate/Zinc Dark Theme Base */
-  --background: 222 47% 11%;
+  /* Dark Theme Base - Deep Navy Blue */
+  --background: 225 35% 8%;
   --foreground: 210 40% 98%;
 
   /* Card / Elevated Surfaces */
-  --card: 217 33% 17%;
+  --card: 223 28% 15%;
   --card-foreground: 210 40% 98%;
-  --popover: 222 47% 11%;
+  --popover: 225 35% 8%;
   --popover-foreground: 210 40% 98%;
 
-  /* Brand Primary - Electric Orange */
-  --primary: 21 90% 48%;
+  /* Brand Primary - Vibrant Purple */
+  --primary: 270 75% 52%;
   --primary-foreground: 210 40% 98%;
 
-  /* Secondary - Cool Blue/Gray */
-  --secondary: 217 33% 17%;
-  --secondary-foreground: 210 40% 98%;
+  /* Secondary - Cool Cyan */
+  --secondary: 185 85% 45%;
+  --secondary-foreground: 225 35% 8%;
 
   /* Muted Text */
-  --muted: 217 33% 17%;
+  --muted: 223 28% 15%;
   --muted-foreground: 215 20.2% 65.1%;
 
-  /* Accent - Neon Blue for tech feel */
-  --accent: 199 89% 48%;
+  /* Accent - Neon Pink for vibrant feel */
+  --accent: 310 90% 55%;
   --accent-foreground: 210 40% 98%;
 
   /* State Colors */
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 210 40% 98%;
-  --border: 217 33% 17%;
-  --input: 217 33% 17%;
-  --ring: 21 90% 48%;
+  --border: 223 28% 15%;
+  --input: 223 28% 15%;
+  --ring: 270 75% 52%;
 
   --radius: 0.75rem;
 

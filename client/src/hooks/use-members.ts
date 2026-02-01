@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 import { useToast } from "@/hooks/use-toast";
+import { getApiUrl } from "@/lib/api";
 import type { CreateMemberRequest } from "@shared/schema";
 
 export function useMembers() {
@@ -10,7 +11,7 @@ export function useMembers() {
   const membersQuery = useQuery({
     queryKey: [api.members.list.path],
     queryFn: async () => {
-      const res = await fetch(api.members.list.path);
+      const res = await fetch(getApiUrl(api.members.list.path));
       if (!res.ok) throw new Error("Failed to fetch members");
       return api.members.list.responses[200].parse(await res.json());
     },
@@ -18,7 +19,7 @@ export function useMembers() {
 
   const createMemberMutation = useMutation({
     mutationFn: async (data: CreateMemberRequest) => {
-      const res = await fetch(api.members.create.path, {
+      const res = await fetch(getApiUrl(api.members.create.path), {
         method: api.members.create.method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -55,7 +56,7 @@ export function useMember(id: number) {
     queryKey: [api.members.get.path, id],
     queryFn: async () => {
       const url = buildUrl(api.members.get.path, { id });
-      const res = await fetch(url);
+      const res = await fetch(getApiUrl(url));
       if (!res.ok) throw new Error("Member not found");
       return api.members.get.responses[200].parse(await res.json());
     },
@@ -65,7 +66,7 @@ export function useMember(id: number) {
   const freezeMutation = useMutation({
     mutationFn: async () => {
       const url = buildUrl(api.members.freeze.path, { id });
-      const res = await fetch(url, { method: api.members.freeze.method });
+      const res = await fetch(getApiUrl(url), { method: api.members.freeze.method });
       if (!res.ok) throw new Error("Failed to freeze member");
       return api.members.freeze.responses[200].parse(await res.json());
     },
