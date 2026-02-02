@@ -5,17 +5,18 @@
  * Usage: npm run create-admin
  */
 
-import { storage } from "./server/storage.js";
+import { storage } from "../server/storage";
 import { randomBytes } from "crypto";
 
 async function createAdminUser() {
   try {
     console.log("🔐 Creating Admin User...\n");
 
-    // Check if user already exists
-    const existingUser = await storage.getUserByUsername("um4779486");
+    const username = "1001";
+
+    const existingUser = await storage.getUserByUsername(username);
     if (existingUser) {
-      console.log("❌ User um4779486 already exists!");
+      console.log(`❌ User ${username} already exists!`);
       process.exit(1);
     }
 
@@ -28,14 +29,14 @@ async function createAdminUser() {
     // Create admin user with member profile
     await storage.createMember(
       {
-        username: "um4779486",
+        username,
         password: hashedPassword,
         role: "admin",
         isActive: true
       },
       {
         fullName: "Admin User",
-        email: "um4779486@gmail.com",
+        email: "admin@example.com",
         phone: "",
         gender: "other",
         monthlyFee: "0",
@@ -49,8 +50,8 @@ async function createAdminUser() {
     console.log("✅ Admin user created successfully!\n");
     console.log("📋 Admin Credentials:");
     console.log("━".repeat(50));
-    console.log(`👤 Username:  um4779486`);
-    console.log(`📧 Email:     um4779486@gmail.com`);
+    console.log(`👤 Username:  ${username}`);
+    console.log(`📧 Email:     admin@example.com`);
     console.log(`🔑 Password:  ${password}`);
     console.log(`👑 Role:      Admin`);
     console.log(`📊 Plan:      VIP`);
